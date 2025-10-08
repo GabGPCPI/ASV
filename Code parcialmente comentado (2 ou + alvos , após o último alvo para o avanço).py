@@ -260,7 +260,7 @@ class main_class():
 
         #Filtro 3: Saturação e Valor Final Seguro
         self.vPsi = max(min(self.vPsi, 30.0), -30.0) #Esta é a trava de segurança final. 
-        #Não importa o que os cálculos digam, esta linha limita (grampeia) a velocidade de rotação para que ela nunca seja maior que 30 graus/s ou menor que -30 graus/s.
+        #Não importa o que os cálculos digam, esta linha limita a velocidade de rotação para que ela nunca seja maior que 30 graus/s ou menor que -30 graus/s.
         vPsi_safe = self.vPsi if np.isfinite(self.vPsi) else 0.0 #Variável Final: Cria a variável vPsi_safe que será de fato usada na fórmula final do controlador PD.
         #Ela pega o valor de self.vPsi já filtrado e limitado. Como uma última redundância de segurança, se o valor ainda for inválido, ele usa 0.0.
 
@@ -285,34 +285,33 @@ class main_class():
 
         # forward force proportional à distância
         dist_pix = np.hypot(usv_x - self.target[0], usv_y - self.target[1]) #O objetivo desta linha é calcular quantos pixels separam o ASV do alvo (dx, dy)
-        #np.hypot(dx, dy): Esta é a função da biblioteca NumPy que aplica o Teorema de Pitágoras. Ela calcula a hipotenusa de um triângulo retângulo cujos catetos são dx e dy
+        #np.hypot(dx, dy): Ela calcula a hipotenusa de um triângulo retângulo cujos catetos são dx e dy
         #O resultado é a distância em linha reta (a hipotenusa) entre o robô e o alvo.
         #O valor final, dist_pix, é um número de ponto flutuante (ex: 253.8_ pixels) que representa a distância euclidiana exata.
         fp = int(min(max(dist_pix * self.CMD_SCALE_FWD, 0), self.CMD_MAX))
-        #lembrando que self.CMD_SCALE_FWD: É um fator de multiplicação. A força de avanço é calculada como distancia_em_pixels * CMD_SCALE_FWD. Se você aumentar esse valor, o ASV andará mais rápido quando estiver longe do alvo.
+        #self.CMD_SCALE_FWD: É um fator de multiplicação. A força de avanço é calculada como distancia_em_pixels * CMD_SCALE_FWD.
         #A força é diretamente proporcional à distância, ou seja, o ASV vai navegar mais rápido se estiver mais distante do alvo.
         #max(..., 0): Esta função garante que a força nunca seja negativa. Ela compara o resultado anterior (600.0) com 0 e retorna o maior dos dois.
         #min(..., self.CMD_MAX): Esta função garante que a força nunca exceda o limite máximo. Ela compara o resultado anterior (600.0) com o valor de self.CMD_MAX (que é 999).
-        #int(...): A etapa final. converte o resultado final (600.0) para um número inteiro (600).
+    
         'Atenção à linha abaixo'
         self.FpProp = fp
         'se eu tirar o comentário da linha #self.FpProp = fp'
         'o comportamento do ASV mudará de uma velocidade de avanço constante para uma velocidade de avanço variável e proporcional à distância até o alvo.'
-        'Vamos detalhar o que acontece:'
 
-            #Com a linha comentada (Situação Atual)
+            #Com a linha comentada
                 #A variável self.FpProp é inicializada com o valor 50 na função __init__.
-                #Dentro da função propulsion, o valor de self.FpProp nunca é alterado.
+                #Dentro da função def propulsion, o valor de self.FpProp nunca é alterado.
                 #O comando de avanço (speedFWD) é sempre calculado com base nesse valor fixo de 50.
                 #Resultado: O ASV tenta se mover para frente com a mesma velocidade o tempo todo, não importa se está a 1 metro ou a 1 centímetro do alvo.
 
-            #Com a linha descomentada (Nova Situação)
-                #Ao remover o #, a linha self.FpProp = fp passa a ser executada a cada ciclo.
+            #Com a linha descomentada
+                #Ao remover o comentário, a linha self.FpProp = fp passa a ser executada a cada ciclo.
                 #Primeiro, o código calcula a distância até o alvo:
                     #dist_pix = np.hypot(usv_x - self.target[0], usv_y - self.target[1])
                 #Depois, calcula fp, que é essa distância multiplicada por uma escala:
                     #fp = int(min(max(dist_pix * self.CMD_SCALE_FWD, 0), self.CMD_MAX))
-                #Agora, a linha self.FpProp = fp atualiza o valor da força de propulsão com base nesse fp recém-calculado.
+                #Agora, a linha self.FpProp = fp atualiza o valor da força de propulsão para esse fp recém-calculado.
 
         # formata comandos (veja nota abaixo sobre sinal/convenção)
         mag_turn = int(min(max(int(abs(self.FpsiProp*2.5)), 0), self.CMD_MAX))
@@ -570,7 +569,7 @@ class main_class():
                                     print("------------------------------------------------------")
                                 else:
                                     # Se for o último waypoint, para o robô e ativa a flag.
-                                    if not self.mission_complete: # Garante que a mensagem só seja impressa uma vez
+                                    if not self.mission_complete: 
                                         print("---------------------------------------------------------")
                                         print("O ASV chegou ao último alvo alcançado. Missão concluída.")
                                         print("---------------------------------------------------------")
