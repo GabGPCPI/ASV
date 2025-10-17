@@ -835,29 +835,99 @@ class main_class():
                                 Retorna [speedFWD, speedTURN] strings (formato zfilled).
                                 """
 
+                                '''
+                                Esta última parte é sobre agir e comunicar: pegar todos os cálculos complexos que fizemos, 
+                                transformá-los em ações (enviar comandos), fornecer feedback visual para o usuário (desenhar na tela) 
+                                e garantir que o programa possa ser encerrado de forma limpa e segura.
+                                '''
+
+                                #1. Exibição de Telemetria (Feedback Visual)
+
+                                '''
+                                Depois que a propulsion retorna os comandos, o programa cria um "painel de controle" de texto diretamente na imagem da câmera. 
+                                Isso é extremamente útil para você, o operador, entender o que o robô está "pensando" em tempo real.
+                                '''
+
                                 info_usv = ["x: "+str(int(cX)),
                                             "y: "+str(int(cY)),
                                             "yaw: "+str(int(np.degrees(angle))),
                                             "yaw_rate: "+str(int(self.vPsi)),
                                             "force yaw: "+speedR[1],
                                             "time: "+str(time.time())]
+                                #info_usv = [...]: Esta linha cria uma lista de strings. Cada string é uma peça de informação de telemetria que será exibida na tela.
+                                    #"x: "+str(int(cX)) e "y: ...": Mostra as coordenadas de posição (inteiras) da AprilTag.
+                                    #"yaw: ...": Mostra a orientação atual do robô em graus.
+                                    #"yaw_rate: ...": Mostra a velocidade de rotação suavizada (self.vPsi), que é o resultado do termo Derivativo. Isso te diz o quão rápido o robô está virando.
+                                    #"force yaw: "+speedR[1]: Mostra o comando de giro bruto (+0550, -0400, etc.) que está sendo enviado. speedR[1] é o comando de giro retornado pela função propulsion.
+                                    #"time: ...": Mostra o tempo do sistema, útil para verificar se o programa está travado.
+
                                 cnt_txt = 50
                                 for txt in info_usv:
                                     cv2.putText(gray_bgr, txt, (10, cnt_txt), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,255), 1,2)
                                     cnt_txt+=15
 
+                                #cnt_txt = 50: Inicializa uma variável que controlará a posição vertical (Y) do texto na tela, começando no pixel 50 a partir do topo.
+                                    #for txt in info_usv:: Inicia um loop que passará por cada string da lista info_usv.
+                                    #cv2.putText(...): Esta é a função do OpenCV para desenhar texto em uma imagem.
+                                        #gray_bgr: A imagem onde o texto será desenhado. txt: A string de texto a ser escrita (ex: "x: 219").
+                                        #(10, cnt_txt): As coordenadas (x, y) onde o texto começará. 10 pixels da borda esquerda, e cnt_txt pixels do topo. 
+                                        #cv2.FONT_HERSHEY_SIMPLEX: O tipo da fonte.
+                                        #0.5: O tamanho da fonte. (0,0,255): A cor do texto (vermelho). 1,2: A espessura da linha da fonte e o tipo de linha.
+                                    #cnt_txt+=15: Após desenhar uma linha de texto, esta linha aumenta a posição vertical em 15 pixels. 
+                                    #Isso garante que a próxima informação seja escrita logo abaixo da anterior, sem sobreposição.
+
+                                #2. Montagem e Envio do Comando UDP
+
+                                    '''Aqui, os comandos calculados são formatados e enviados pela rede para o ASV.'''
+
                                 msg3 = "{"+speedR[1]+speedR[0]+"}"
+                                #msg3 = ...: Monta a string final do comando.
+                                #speedR[1] é o comando de giro (ex: "-0850") e speedR[0] é o de avanço (ex: "0225"). 
+                                #A linha os concatena no formato que o código Arduino espera: {-08500225}.
+
                                 print(f"[FULL] tag_id={r.tag_id} at ({cX},{cY}) angle={np.degrees(angle):.1f}deg -> msg SEND: {msg3} -> {dest}")
+                                #print(...): Imprime a linha de status completa no seu terminal. 
+                                #Esta é a sua principal ferramenta de depuração para ver o que o programa está fazendo a cada detecção.
+
                                 if self.udp_ok:
+                                #if self.udp_ok:: Uma pequena trava de segurança. Se um envio UDP falhar, self.udp_ok se torna False, 
+                                #e o programa para de tentar enviar dados para não poluir o terminal com erros repetidos.
                                     try:
                                         udp.sendto(msg3.encode(), dest)
                                     except Exception as e:
                                         print("UDP send error:", e)
                                         self.udp_ok = False
+                                        #try...except: Outro bloco de segurança. Ele tenta enviar o comando.
+                                            #udp.sendto(msg3.encode(), dest): A ação final.
+                                                #msg3.encode(): Converte a string de texto do comando em uma sequência de bytes, que é o formato que as redes entendem.
+                                                #udp.sendto(..., dest): Envia esses bytes via UDP para o destino (dest), que contém o endereço IP e a porta do ASV.
 
                         except Exception:
+                            #Ela funciona em conjunto com um bloco try: que vem antes (e que envolve todo o código de processamento da AprilTag).
+                            # A lógica é: "Tente (try) executar o código de processamento. 
+                            #Se qualquer tipo de erro (Exception) acontecer, em vez de travar, pule para este bloco except."
                             traceback.print_exc()
+                            '''
+                            O que faz? Esta é a ferramenta de diagnóstico. Se um erro for capturado, 
+                            esta função da biblioteca traceback imprime no seu terminal um relatório completo e detalhado do erro. 
+                            Esse relatório, chamado de "traceback" (ou "pilha de execução"), mostra:
+                                O tipo de erro (ex: ZeroDivisionError, ValueError).
+                                O arquivo e a linha exata onde o erro ocorreu.
+                                A sequência de chamadas de função que levaram ao erro.
+                            Por que é importante? Sem essa linha, você saberia que um erro aconteceu, mas não teria ideia do que foi ou onde procurar. 
+                            traceback.print_exc() é a ferramenta mais útil para um programador entender e corrigir bugs.
+                            '''
                             continue
+                        '''
+                            O que faz? continue é uma instrução que afeta o loop (for r in results_full:) em que está inserida. 
+                            Ela diz ao programa: "Pare imediatamente esta iteração do loop e pule para a próxima".
+                                Por que é importante? Imagine que a câmera detectou duas AprilTags, mas a primeira tem um defeito que causa um erro de cálculo. 
+                                Sem o continue, o programa travaria ao processar a primeira tag. Com o continue, o programa faria o seguinte:
+                                    Tenta processar a primeira tag. - > Ocorre um erro. -  > Entra no bloco except.
+                                    Imprime os detalhes do erro com traceback.print_exc().
+                            O continue é executado, e o programa ignora o resto do código para a primeira tag e pula para a próxima iteração, 
+                            começando a processar a segunda tag normalmente.
+                            '''
 
                 # ==== DISPLAY ====
                 '''display_frame = None
@@ -895,11 +965,19 @@ class main_class():
 
                 if self.show_img:
                     #gray_bgr = cv2.rotate(gray_bgr, cv2.ROTATE_90_COUNTERCLOCKWISE)
+                    #if self.show_img:: Verifica a variável que foi configurada no início (show_window=True). Se for True...
                     cv2.imshow('frame', gray_bgr)
+                        #cv2.imshow('frame', gray_bgr): ...esta função do OpenCV pega a imagem gray_bgr (com todos os desenhos e textos) 
+                        #e a exibe na janela chamada 'frame' que foi criada no início. Esta é a linha que faz a janela da câmera aparecer na sua tela.
 
                 if cv2.waitKey(1) & 0xFF == ord('q'):
                     print("Saindo por tecla 'q'")
                     break
+                    #cv2.waitKey(1): Esta é uma função crucial para o OpenCV. Ela faz duas coisas: 
+                    #1) Mostra a imagem na tela e espera por 1 milissegundo. 
+                    #2) Se uma tecla for pressionada durante esse tempo, ela retorna o código da tecla.
+                        #& 0xFF == ord('q'): Esta parte verifica se a tecla pressionada foi a letra 'q'.
+                        #break: Se a tecla 'q' for pressionada, o comando break interrompe o loop while True, fazendo o programa sair do ciclo principal e continuar para o código de finalização.
 
         except KeyboardInterrupt:
             print("Interrompido pelo usuário (Ctrl+C).")
@@ -907,16 +985,24 @@ class main_class():
             print("Erro inesperado:")
             traceback.print_exc()
         finally:
+            #finally:: Este bloco de código é garantido a ser executado no final, não importa como o programa saiu do loop try (seja por break, por erro, ou por Ctrl+C).
             try:
                 cap.release()
+                #cap.release(): Libera a câmera, desligando-a e permitindo que outros programas a usem. Esta é uma das linhas mais importantes para a limpeza.
             except:
                 pass
             cv2.destroyAllWindows()
+            #cv2.destroyAllWindows(): Fecha todas as janelas que o OpenCV abriu.
             print("Camera and windows released/closed.")
+            #print(...): Informa ao usuário que o encerramento foi bem-sucedido.
 
 
 if __name__ == '__main__':
-    # rotate=90 para girar 90° clockwise se seu dispositivo precisar
-    #Image = main_class(camera_index=0 determina qual a câmera que o programa vai tentar usar. 0 -> padrão do pc/note , 1-> camêra usb externa
+    #if __name__ == '__main__':: Esta é uma convenção padrão em Python. 
+    #Ela significa: "Se este script está sendo executado diretamente (e não importado por outro script), então execute o código abaixo".
+        # rotate=90 para girar 90° clockwise se seu dispositivo precisar
+        #Image = main_class(camera_index=0 determina qual a câmera que o programa vai tentar usar. 0 -> padrão do pc/note , 1-> camêra usb externa
     Image = main_class(camera_index=0, show_window=True, rotate=0)
+    #Image = main_class(...): Cria uma instância (um objeto) da sua classe main_class, passando os parâmetros de configuração e executando o __init__.
     Image.image_processor()
+    #Image.image_processor(): Chama a função image_processor no objeto recém-criado, dando início a todo o processo que acabamos de estudar.
